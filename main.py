@@ -2,6 +2,13 @@ from FlappyBird import FlappyBird
 import os
 import argparse
 
+def createGame(name, disable):
+    if name == "Flappy Bird":
+        return FlappyBird(500,800, disable)
+    else:
+        print("Unsupported game")
+        return None
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-t", "--train", help="train model", action="store_true")
@@ -9,19 +16,17 @@ def main():
     parser.add_argument("-g", "--game",help="Game to play", required=True)
     args = parser.parse_args()
 
-    game = None
-    if args.game == "Flappy Bird":
-        game = FlappyBird(500,800, args.disable)
-    else:
-        print("Unsupported game")
-        return
+    game = createGame(args.game, args.disable)
+    game.Init()
     
+    if game is None:
+        return
+
     if args.train:
         local_dir = os.path.dirname(__file__)
         config_path = os.path.join(local_dir, 'config-feedforward.txt')
         game.Train(config_path)
     else:
-        game.Init()
         game.Run()
 
 

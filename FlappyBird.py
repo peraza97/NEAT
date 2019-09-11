@@ -4,28 +4,26 @@ import random
 import neat
 from Game import Game
 
-CLOCK = pygame.time.Clock()
-WIN = pygame.display.set_mode((500, 800))
 gen = 0
 
 class FlappyBird(Game):
     def __init__(self, height, width, draw):
-        super().__init__(height,width,"Flappy Bird")
-        self.draw = draw
-        self.bg_img = pygame.transform.scale(pygame.image.load(os.path.join("FlappyBirdImgs","bg.png")).convert_alpha(), (500, 800))
+        super().__init__(height,width,"Flappy Bird",draw)
+        self.bgImg = None
         self.bird = None
-        self.pipes = []
+        self.pipes = None
         self.base = None
 
     def Init(self):
         super().Init()
+        self.bgImg = pygame.transform.scale(pygame.image.load(os.path.join("FlappyBirdImgs","bg.png")).convert_alpha(), (500, 800))
         self.bird = Bird((230,350))
         self.base = Base(730)
         self.pipes = [Pipe(500)]
 
     def Draw(self):
         #draw the background image
-        self.window.blit(self.bg_img, (0,0))
+        self.window.blit(self.bgImg, (0,0))
         #draw the pipes
         for pipe in self.pipes:
             pipe.Draw(self.window)
@@ -34,8 +32,8 @@ class FlappyBird(Game):
         #draw the bird
         self.bird.Draw(self.window)
 
-        score_label = self.font.render("Score: " + str(self.score),1,(255,255,255))
-        self.window.blit(score_label, (self.width - score_label.get_width() - 15, 10))
+        scoreLabel = self.font.render("Score: " + str(self.score),1,(255,255,255))
+        self.window.blit(scoreLabel, (self.width - scoreLabel.get_width() - 15, 10))
 
         pygame.display.update()
         self.clock.tick(30)
@@ -68,6 +66,7 @@ class FlappyBird(Game):
             self.running = False
 
     def Run(self):
+        self.Init()
         while self.running:
             #event handler
             for event in pygame.event.get():
@@ -82,10 +81,10 @@ class FlappyBird(Game):
 
     def eval_birds(self, genomes, config):
 
-        global WIN, CLOCK, gen
-        win = WIN
+        global gen
+        win = self.window
         gen += 1
-        clock = CLOCK
+        clock = self.clock
 
         #set up
         score = 0
@@ -109,10 +108,10 @@ class FlappyBird(Game):
                     running = False
                     exit()
             
-            pipe_ind = 0
+            pipeInd = 0
             for i, pipe in enumerate(pipes):
-                if birds[0].x > pipe.x + pipe.pipe_top.get_width():
-                    pipe_ind = i + 1
+                if birds[0].x > pipe.x + pipe.pipeTop.get_width():
+                    pipeInd = i + 1
                     break
 
             for x, bird in enumerate(birds):  # give each bird a fitness of 0.1 for each frame it stays alive
@@ -120,7 +119,7 @@ class FlappyBird(Game):
                 bird.Move()
 
                 # send bird location, top pipe location and bottom pipe location and determine from network whether to jump or not
-                output = nets[birds.index(bird)].activate((bird.y, bird.y - pipes[pipe_ind].height, bird.y - pipes[pipe_ind].bottom, bird.velocity))
+                output = nets[birds.index(bird)].activate((bird.y, bird.y - pipes[pipeInd].height, bird.y - pipes[pipeInd].bottom, bird.velocity))
 
                 if output[0] > 0.5: 
                     bird.Jump()
@@ -147,11 +146,11 @@ class FlappyBird(Game):
             if pipes[0].OffScreen():
                 del(pipes[0])
 
-            if self.draw:
+            if self.display:
                 self.TrainDraw(clock, win, birds, pipes, base, gen, score)
 
     def TrainDraw(self, clock, win, birds, pipes, base, gen, score):
-            win.blit(self.bg_img, (0,0))
+            win.blit(self.bgImg, (0,0))
             #draw the pipes
             for pipe in pipes:
                 pipe.Draw(win)
@@ -161,14 +160,14 @@ class FlappyBird(Game):
             for bird in birds:
                 bird.Draw(win)
             
-            score_label = self.font.render("Score: " + str(score),1,(255,255,255))
-            win.blit(score_label, (self.width - score_label.get_width() - 15, 10))
+            scoreLabel = self.font.render("Score: " + str(score),1,(255,255,255))
+            win.blit(scoreLabel, (self.width - scoreLabel.get_width() - 15, 10))
 
-            gen_label = self.font.render("Gen: " + str(gen),1,(255,255,255))
-            win.blit(gen_label, (5, 10))
+            genLabel = self.font.render("Gen: " + str(gen),1,(255,255,255))
+            win.blit(genLabel, (5, 10))
 
-            pop_label = self.font.render("Pop: " + str(len(birds)),1,(255,255,255))
-            win.blit(pop_label, (5, 50))
+            popLabel = self.font.render("Pop: " + str(len(birds)),1,(255,255,255))
+            win.blit(popLabel, (5, 50))
             pygame.display.update()
             clock.tick(30)
              
@@ -185,31 +184,29 @@ class FlappyBird(Game):
         best = p.run(self.eval_birds, 50)
 
 class Bird:
-
-    max_rotation = 25
-    rotation_velocity = 20
-    animation_time = 5
-    imgs = [pygame.transform.scale2x(pygame.image.load(os.path.join("FlappyBirdImgs","bird" + str(x) + ".png"))) for x in range(1,4)]
+    maxRotation = 25
+    rotationVelocity = 20
+    animationTime = 5
     def __init__(self, start_pos):
-        self.imgs = Bird.imgs
+        self.imgs = [pygame.transform.scale2x(pygame.image.load(os.path.join("FlappyBirdImgs","bird" + str(x) + ".png"))) for x in range(1,4)]
         self.img = self.imgs[0]
         self.x = start_pos[0]
         self.y = start_pos[1]
         self.tilt = 0
-        self.tick_count = 0
+        self.tickCount = 0
         self.velocity = 0
         self.height = self.y
-        self.img_count = 0
+        self.imgCount = 0
     
     def Jump(self):
         self.velocity = -10.5
-        self.tick_count = 0
+        self.tickCount = 0
         self.height = self.y
 
     def Move(self):
-        self.tick_count +=1
+        self.tickCount +=1
         # for downward acceleration
-        displacement = self.velocity*(self.tick_count) + 1.5 *(self.tick_count)**2
+        displacement = self.velocity*(self.tickCount) + 1.5 *(self.tickCount)**2
 
         if displacement >= 16:
             displacement = 16
@@ -217,34 +214,34 @@ class Bird:
             displacement -= 2
         self.y = self.y + displacement
         if displacement < 0 or self.y < self.height + 50:  # tilt up
-            if self.tilt < Bird.max_rotation:
-                self.tilt = Bird.max_rotation
+            if self.tilt < Bird.maxRotation:
+                self.tilt = Bird.maxRotation
         else:  # tilt down
             if self.tilt > -90:
-                self.tilt -= Bird.rotation_velocity
+                self.tilt -= Bird.rotationVelocity
         
     def Draw(self, window):
-        self.img_count += 1
+        self.imgCount += 1
 
-        if self.img_count < Bird.animation_time:
+        if self.imgCount < Bird.animationTime:
             self.img = self.imgs[0]
-        elif self.img_count < Bird.animation_time * 2:
+        elif self.imgCount < Bird.animationTime * 2:
             self.img = self.imgs[1]
-        elif self.img_count < Bird.animation_time * 3:
+        elif self.imgCount < Bird.animationTime * 3:
             self.img = self.imgs[2]
-        elif self.img_count < Bird.animation_time * 4:
+        elif self.imgCount < Bird.animationTime * 4:
             self.img = self.imgs[1]
-        elif self.img_count == Bird.animation_time * 4 + 1:
+        elif self.imgCount == Bird.animationTime * 4 + 1:
             self.img = self.imgs[0]
-            self.img_count = 0
+            self.imgCount = 0
 
         if self.tilt <= -80:
             self.img = self.imgs[1]
-            self.img_count = Bird.animation_time*2
+            self.imgCount = Bird.animationTime*2
 
-        rotated_img = pygame.transform.rotate(self.img, self.tilt)
-        new_rect = rotated_img.get_rect(center=self.img.get_rect(topleft=(self.x,self.y)).center)
-        window.blit(rotated_img,new_rect.topleft)
+        rotatedImg = pygame.transform.rotate(self.img, self.tilt)
+        new_rect = rotatedImg.get_rect(center=self.img.get_rect(topleft=(self.x,self.y)).center)
+        window.blit(rotatedImg,new_rect.topleft)
     
     def GetPos(self):
         return (self.x, self.y)
@@ -255,30 +252,29 @@ class Bird:
 class Pipe:
     gap = 150
     velocity = 5
-    pipe_img = pygame.transform.scale2x(pygame.image.load(os.path.join("FlappyBirdImgs","pipe.png")).convert_alpha())
-    
     def __init__(self,x):
         self.x = x
         self.height = 0
         self.top = 0
         self.bottom = 0
-        self.pipe_top = pygame.transform.flip(Pipe.pipe_img,False,True)
-        self.pipe_bottom = Pipe.pipe_img
+        self.pipeBottom = pygame.transform.scale2x(pygame.image.load(os.path.join("FlappyBirdImgs","pipe.png")).convert_alpha())
+        self.pipeTop = pygame.transform.flip(self.pipeBottom,False,True)
+  
 
         self.passed = False
         self.SetHeight()
     
     def SetHeight(self):
         self.height = random.randrange(50,450)
-        self.top = self.height - self.pipe_top.get_height()
+        self.top = self.height - self.pipeTop.get_height()
         self.bottom = self.height + Pipe.gap
 
     def Move(self):
         self.x -= Pipe.velocity
     
     def Draw(self, window):
-        window.blit(self.pipe_top, (self.x,self.top))
-        window.blit(self.pipe_bottom, (self.x,self.bottom))
+        window.blit(self.pipeTop, (self.x,self.top))
+        window.blit(self.pipeBottom, (self.x,self.bottom))
     
     def Collide(self, bird):
         
@@ -286,8 +282,8 @@ class Pipe:
             return False
 
         bird_mask = bird.GetMask()
-        top_mask = pygame.mask.from_surface(self.pipe_top)
-        bot_mask = pygame.mask.from_surface(self.pipe_bottom)
+        top_mask = pygame.mask.from_surface(self.pipeTop)
+        bot_mask = pygame.mask.from_surface(self.pipeBottom)
 
         top_offset = (self.x - bird.x , self.top - round(bird.y))
         bot_offset = (self.x - bird.x, self.bottom - round(bird.y))
@@ -307,15 +303,14 @@ class Pipe:
         return False
 
     def OffScreen(self):
-        if self.x + self.pipe_top.get_width() < 0:
+        if self.x + self.pipeTop.get_width() < 0:
             return True
 
 class Base:
     velocity = 5
-    base_img = pygame.transform.scale2x(pygame.image.load(os.path.join("FlappyBirdImgs","base.png")).convert_alpha())
     
     def __init__(self, y):
-        self.img = Base.base_img
+        self.img = pygame.transform.scale2x(pygame.image.load(os.path.join("FlappyBirdImgs","base.png")).convert_alpha())
         self.width = self.img.get_width()
         self.height = self.img.get_height()
         self.y = y
